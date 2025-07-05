@@ -1,0 +1,92 @@
+HeadsUp
+Project Revised Spec Document
+
+By Miguel Rodriguez
+
+
+General Description
+
+HeadsUp is a lightweight delay messaging tool for dental offices (primarily). The idea came out of a real-world experience I had last week at my dentist’s… I waited over 35 minutes and had no idea how long I’d be sitting there, how much work was about to be done, or whether I could reschedule or walk out. I overheard a woman who was with her young daughter complain to the front desk person that she didn’t appreciate the lack of concern by the staff and the 1 hour delay she had to sit through. 
+
+It made me realize how much smoother things could be if dental offices had a super simple way to notify patients about delays, especially with how common they are.
+
+The user can either upload a CSV of appointments or manually enter appointment info (phone number, appointment time, and status). The app sends one-way SMS updates like “We’re currently running 30 minutes behind. Thanks for your patience!” using Twilio’s API. The data is never stored, only processed in memory so it avoids handling Protected Health Information (PHI) and sidesteps HIPAA complexity for the MVP.
+
+This project will be a Python-powered backend (using FastAPI) connected to a React + Tailwind front end. 
+
+Tools: 
+	• Python with FastAPI for backend
+	• React + Tailwind for frontend
+	• Firebase for authentication
+	• Twilio API for outbound SMS
+	• Hosted on Netlify
+
+The app doesn’t require full calendar integration or EHR access — it’s intentionally simple and designed to work alongside the tools dental offices already use. It’s also realistic to build within the course timeline and gives me hands-on experience with APIs, data handling, and backend logic in Python.
+
+The idea is to reduce patient frustration, save time at the front desk, and prevent missed appointments with a simple notification system that’s easy for any office to adopt.
+
+
+Task Vignettes
+
+Action 1. Upload Today’s Appointment List
+
+Each row contains a phone number, appointment time, and appointment type. The app parses the file and displays the list in the UI without saving it anywhere.
+
+Tech Details:
+	• CSV parsed in frontend using JavaScript
+	• Data sent to FastAPI backend via POST request
+	• Backend holds data only in RAM for session duration
+	• No database storage or caching involved
+
+Action 2. Send Delay Notifications
+
+The receptionist clicks a “Notify Patients” button, selects a delay time from a dropdown (e.g., “Running 30 minutes late”), and the app sends SMS messages to selected patients via Twilio.
+	Technical details:
+	• Message templating handled server-side
+	• Backend calls Twilio API securely using an environment-stored token
+	• Confirmation of send status shown in UI (success/failure)
+	• Phone numbers are immediately cleared from memory afterward.
+
+Action 3. Manual Entry for Walk-ins or Updates
+
+If the receptionist needs to notify someone not on the CSV (like a last-minute walk-in), they can manually enter a phone number and message.
+	Technical details:
+	• Form input validated on frontend
+	• Sent to FastAPI backend for single SMS relay
+	• Message templates standardized to avoid custom entry of PHI
+
+
+Technical Flow
+
+Overview
+
+The app is structured as a single-page web app (SPA) using React. The Python FastAPI backend serves a /send_sms endpoint. All data (e.g., phone numbers and appointment times) is passed from frontend to backend only during the session and never stored.
+
+Flow Diagram Summary:
+	1. User logs in via Firebase Auth (email/password or Google)
+	2. Upload CSV → parsed by frontend → temporary data sent to backend
+	3. User selects patients + delay time → backend uses Twilio to send SMS
+	4. Backend does not write anything to disk—just relays messages
+	5. UI shows confirmation, then clears any stored state after session
+
+Data Types:
+	• CSV → parsed into array of dictionaries
+	• Phone number (string), time (string), delay (string)
+	• Message template string
+	• All sent over HTTPS as JSON payload
+
+
+
+Final Assessment
+
+What changed from the sketch?
+I originally thought I’d store the patient data but I actually want to try to launch/sell this thing to my local dentistry and in order to do that, the would have to comply with HIPAA if it stores health data of any kind. I also thought about a 2 way SMS capability that would allow a patient to reschedule their appointment via text. I think that capability can come in v1, as compliance is approached with more time and care. This basic, and secure v1 will serve as a proof of concept. 
+
+Confidence Level:
+I feel somewhat confident, although I’ve never used FastAPI or Twilio API so I’m excited to implement those. I may even try to build in a sign up and payment flow with Stripe API time permitting. 
+
+Biggest problem:
+For sure its handling the CSV parsing and SMS sending flow in a clean and secure way. I want to make sure everything works without saving personal health information. 
+
+Least familiar:
+FastAPI, Twilio APIs, and Tailwind. I have heard about them in passing over the years but as a designer I’ve never touched them directly. 
