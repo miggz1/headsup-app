@@ -1,145 +1,198 @@
 // Here we import React so we can use React features like state
-import React, { useState } from "react";
-
+import React, { useState, useEffect } from "react";
 // Axios enables HTTP requests to FastAPI backend
 import axios from "axios";
-
 // PapaParse lets us parse CSVs directly in the browser
 import Papa from "papaparse";
 
-// Define function called CSVUploader
 function CSVUploader() {
   // State to store full CSV data
   const [csvData, setCsvData] = useState([]);
-  // Store headers from CSV
   const [headers, setHeaders] = useState([]);
-  // User-selected mappings
   const [phoneColumn, setPhoneColumn] = useState("");
   const [timeColumn, setTimeColumn] = useState("");
-  // Extracted data we want to preview and send
+  const [categorizedData, setCategorizedData] = useState({ morning: [], afternoon: [], evening: [] });
   const [selectedData, setSelectedData] = useState([]);
+  const [delayTime, setDelayTime] = useState("");
 
-  // This function runs when a user selects a file
   const handleFileChange = (event) => {
-    const file = event.target.files[0]; // Get the selected file
+    const file = event.target.files[0];
     if (!file) return;
 
     Papa.parse(file, {
-      header: true, // Treat first row as header
+      header: true,
       skipEmptyLines: true,
       complete: function (results) {
-        setCsvData(results.data); // Save all rows of CSV
-        setHeaders(results.meta.fields); // Save header names
+        setCsvData(results.data);
+        setHeaders(results.meta.fields);
       },
     });
   };
 
-  // Extract only the user-mapped columns (phone + time)
+  // Categorize data into time buckets after mapping
   const handleMapping = () => {
     if (!phoneColumn || !timeColumn) return;
 
-    const extracted = csvData.map((row) => ({
-      phone: row[phoneColumn],
-      appointment_time: row[timeColumn],
-    }));
+    const morning = [];
+    const afternoon = [];
+    const evening = [];
 
-    setSelectedData(extracted); // Store for preview
+    csvData.forEach((row) => {
+      const phone = row[phoneColumn];
+      const time = row[timeColumn];
+      if (!phone || !time) return;
+
+      const hour = parseInt(time.split(":")[0]);
+      const isPM = time.toLowerCase().includes("pm");
+      const hour24 = isPM && hour < 12 ? hour + 12 : hour;
+
+      const appt = { phone, appointment_time: time };
+
+      if (hour24 < 12) {
+        morning.push(appt);
+      } else if (hour24 < 17) {
+        afternoon.push(appt);
+      } else {
+        evening.push(appt);
+      }
+    });
+
+    setCategorizedData({ morning, afternoon, evening });
   };
 
-  // Upload extracted data to backend
-  const handleSubmit = async () => {
-    try {
-      const response = await axios.post("http://127.0.0.1:8000/upload_csv", {
-        appointments: selectedData,
-      });
+  // Handle group checkbox (select/deselect all)
+  const toggleGroup = (group) => {
+    const groupData = categorizedData[group];
+    const isAlreadySelected = groupData.every((appt) =>
+      selectedData.find((sel) => sel.phone === appt.phone)
+    );
 
-      console.log("Response from backend:", response.data);
-    } catch (error) {
-      console.error("Something went wrong uploading the data:", error);
+    if (isAlreadySelected) {
+      setSelectedData(selectedData.filter((sel) => !groupData.find((g) => g.phone === sel.phone)));
+    } else {
+      setSelectedData([...selectedData, ...groupData.filter((g) => !selectedData.find((s) => s.phone === g.phone))]);
     }
   };
 
-  // The return statement defines what we see on the web page (the UI)
+  const toggleSingle = (appt) => {
+    const exists = selectedData.find((s) => s.phone === appt.phone);
+    if (exists) {
+      setSelectedData(selectedData.filter((s) => s.phone !== appt.phone));
+    } else {
+      setSelectedData([...selectedData, appt]);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!delayTime || selectedData.length === 0) return;
+
+    try {
+      const response = await axios.post("http://127.0.0.1:8000/send_sms", {
+        delay: delayTime,
+        appointments: selectedData,
+      });
+
+      alert("Messages sent!");
+    } catch (error) {
+      alert("Error sending messages");
+    }
+  };
+
   return (
     <div className="max-w-xl mx-auto p-4">
       <h2 className="text-xl font-semibold mb-2">Upload and Map Appointments CSV</h2>
 
-      {/* CSV Upload Input */}
       <input type="file" accept=".csv" onChange={handleFileChange} className="mb-4" />
 
-      {/* Column Mapping Dropdowns */}
       {headers.length > 0 && (
         <div className="space-y-4 mb-4">
-          <div>
-            <label className="block">Select Phone Number Column:</label>
-            <select
-              className="border p-2 w-full"
-              value={phoneColumn}
-              onChange={(e) => setPhoneColumn(e.target.value)}
-            >
-              <option value="">-- Choose --</option>
-              {headers.map((header) => (
-                <option key={header} value={header}>{header}</option>
-              ))}
-            </select>
-          </div>
+          <label>Select Phone Number Column:</label>
+          <select className="border p-2 w-full" value={phoneColumn} onChange={(e) => setPhoneColumn(e.target.value)}>
+            <option value="">-- Choose --</option>
+            {headers.map((h) => (
+              <option key={h} value={h}>{h}</option>
+            ))}
+          </select>
 
-          <div>
-            <label className="block">Select Appointment Time Column:</label>
-            <select
-              className="border p-2 w-full"
-              value={timeColumn}
-              onChange={(e) => setTimeColumn(e.target.value)}
-            >
-              <option value="">-- Choose --</option>
-              {headers.map((header) => (
-                <option key={header} value={header}>{header}</option>
-              ))}
-            </select>
-          </div>
+          <label>Select Appointment Time Column:</label>
+          <select className="border p-2 w-full" value={timeColumn} onChange={(e) => setTimeColumn(e.target.value)}>
+            <option value="">-- Choose --</option>
+            {headers.map((h) => (
+              <option key={h} value={h}>{h}</option>
+            ))}
+          </select>
 
-          <button
-            onClick={handleMapping}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            Confirm Mapping
-          </button>
+          <button onClick={handleMapping} className="bg-blue-500 text-white px-4 py-2 rounded">Confirm Mapping</button>
         </div>
       )}
 
-      {/* If mapped data exists, show it and allow upload */}
-      {selectedData.length > 0 && (
-        <div className="mt-4">
-          <h3 className="font-bold">Mapped Appointment Preview:</h3>
-          <table className="border border-collapse w-full text-sm mt-2">
-            <thead>
-              <tr>
-                <th className="border px-2 py-1 bg-gray-100">Phone</th>
-                <th className="border px-2 py-1 bg-gray-100">Appointment Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedData.map((row, idx) => (
-                <tr key={idx}>
-                  <td className="border px-2 py-1">{row.phone}</td>
-                  <td className="border px-2 py-1">{row.appointment_time}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Upload extracted appointment info */}
-          <button
-            onClick={handleSubmit}
-            className="mt-4 bg-green-500 text-white px-4 py-2 rounded"
-          >
-            Send to Backend
-          </button>
+      {/* Delay Dropdown */}
+      {Object.values(categorizedData).some(group => group.length > 0) && (
+        <div className="mb-4">
+          <label>Select Delay Time:</label>
+          <select className="border p-2 w-full" value={delayTime} onChange={(e) => setDelayTime(e.target.value)}>
+            <option value="">-- Select --</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="45">45 minutes</option>
+            <option value="60">1 hour</option>
+          </select>
         </div>
+      )}
+
+      {/* Categorized Preview with checkboxes */}
+      {['morning', 'afternoon', 'evening'].map((label) => (
+        categorizedData[label].length > 0 && (
+          <div key={label} className="mt-4">
+            <h3 className="font-bold capitalize mb-2">
+              <input
+                type="checkbox"
+                className="mr-2"
+                onChange={() => toggleGroup(label)}
+                checked={categorizedData[label].every((appt) =>
+                  selectedData.find((s) => s.phone === appt.phone)
+                )}
+              />
+              {label} Appointments
+            </h3>
+            <table className="border w-full text-sm">
+              <thead>
+                <tr>
+                  <th>Select</th>
+                  <th>Phone</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categorizedData[label].map((appt, i) => (
+                  <tr key={i}>
+                    <td className="border p-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedData.some((s) => s.phone === appt.phone)}
+                        onChange={() => toggleSingle(appt)}
+                      />
+                    </td>
+                    <td className="border p-1">{appt.phone}</td>
+                    <td className="border p-1">{appt.appointment_time}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ))}
+
+      {selectedData.length > 0 && delayTime && (
+        <button
+          onClick={handleSubmit}
+          className="mt-6 bg-green-600 text-white px-4 py-2 rounded"
+        >
+          Send SMS to {selectedData.length} Patients
+        </button>
       )}
     </div>
   );
 }
 
-// Make this component available to other files like App.js
 export default CSVUploader;
