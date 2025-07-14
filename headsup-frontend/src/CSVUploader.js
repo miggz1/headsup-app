@@ -6,7 +6,6 @@ import axios from "axios";
 import Papa from "papaparse";
 
 function CSVUploader() {
-  // State to store full CSV data
   const [csvData, setCsvData] = useState([]);
   const [headers, setHeaders] = useState([]);
   const [phoneColumn, setPhoneColumn] = useState("");
@@ -14,6 +13,7 @@ function CSVUploader() {
   const [categorizedData, setCategorizedData] = useState({ morning: [], afternoon: [], evening: [] });
   const [selectedData, setSelectedData] = useState([]);
   const [delayTime, setDelayTime] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -29,7 +29,6 @@ function CSVUploader() {
     });
   };
 
-  // Categorize data into time buckets after mapping
   const handleMapping = () => {
     if (!phoneColumn || !timeColumn) return;
 
@@ -60,7 +59,6 @@ function CSVUploader() {
     setCategorizedData({ morning, afternoon, evening });
   };
 
-  // Handle group checkbox (select/deselect all)
   const toggleGroup = (group) => {
     const groupData = categorizedData[group];
     const isAlreadySelected = groupData.every((appt) =>
@@ -85,6 +83,7 @@ function CSVUploader() {
 
   const handleSubmit = async () => {
     if (!delayTime || selectedData.length === 0) return;
+    setStatusMessage("Sending...");
 
     try {
       const response = await axios.post("http://127.0.0.1:8000/send_sms", {
@@ -92,9 +91,11 @@ function CSVUploader() {
         appointments: selectedData,
       });
 
-      alert("Messages sent!");
+      const { success, failure } = response.data;
+      setStatusMessage(`✅ Sent to ${success.length} patients. ❌ Failed: ${failure.length}`);
     } catch (error) {
-      alert("Error sending messages");
+      console.error(error);
+      setStatusMessage("❌ Something went wrong. Try again later.");
     }
   };
 
@@ -126,7 +127,6 @@ function CSVUploader() {
         </div>
       )}
 
-      {/* Delay Dropdown */}
       {Object.values(categorizedData).some(group => group.length > 0) && (
         <div className="mb-4">
           <label>Select Delay Time:</label>
@@ -140,7 +140,6 @@ function CSVUploader() {
         </div>
       )}
 
-      {/* Categorized Preview with checkboxes */}
       {['morning', 'afternoon', 'evening'].map((label) => (
         categorizedData[label].length > 0 && (
           <div key={label} className="mt-4">
@@ -184,12 +183,15 @@ function CSVUploader() {
       ))}
 
       {selectedData.length > 0 && delayTime && (
-        <button
-          onClick={handleSubmit}
-          className="mt-6 bg-green-600 text-white px-4 py-2 rounded"
-        >
-          Send SMS to {selectedData.length} Patients
-        </button>
+        <div className="mt-6">
+          <button
+            onClick={handleSubmit}
+            className="bg-green-600 text-white px-4 py-2 rounded"
+          >
+            Send SMS to {selectedData.length} Patients
+          </button>
+          {statusMessage && <p className="mt-2 text-sm text-gray-800">{statusMessage}</p>}
+        </div>
       )}
     </div>
   );

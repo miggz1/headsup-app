@@ -1,63 +1,64 @@
-# Step 1: Start the App with a button tap (no Firebase Auth, just local)
-# I used a FastAPI backend which will eventually handle sending SMS messages.
-# For Step 1, this code is intended to just set up a FastAPI project instance and make sure it's running locally
+# main.py - FastAPI backend for sending SMS notifications
 
-
-# Import FastAPI
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import csv
-from io import StringIO
+from pydantic import BaseModel
+from typing import List
+from twilio.rest import Client
+import os
+from dotenv import load_dotenv
 
-#Created the FastAPI instance
+# Load environment variables from .env file
+load_dotenv()
+
+# Twilio credentials from environment
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
+
+# Set up FastAPI app
 app = FastAPI()
 
-# This was tricky and not totally sure what's happening here. I found a snippet in docs that suggests for "allowing for cross-origin requests so the React frontend can talk to this backend"
+# Allow frontend running on localhost:3000 to communicate with backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins (you can restrict this later)
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Created a simple root route to test the app
-@app.get("/")
-def read_root():
-    return {"message": "HeadsUp FastAPI backend is running!"}
+# Define the shape of appointment data coming in from frontend
+class Appointment(BaseModel):
+    phone: str
+    appointment_time: str
 
-# Upload the csv file and parse it
-# According to the docs, this endpoint will allow for uploading a CSV file from the frontend.
-# Here we'll parse the CSV and return the data as JSON, without storing anything.
+# Define the structure of the full request body
+class SMSRequest(BaseModel):
+    delay: str
+    appointments: List[Appointment]
 
+# Create Twilio client once, reuse it
+client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
-@app.post("/upload_csv")
-async def upload_csv(file: UploadFile = File(...)):
-    # Read the contents of the uploaded file
-    contents = await file.read()
+# Route to handle sending SMS
+@app.post("/send_sms")
+async def send_sms(data: SMSRequest):
+    delay_msg = f"We're currently running {data.delay} minutes behind. Thanks for your patience!"
 
-    # Convert bytes to string for CSV parsing
-    decoded = contents.decode("utf-8")
+    success = []
+    failure = []
 
-    # Use StringIO to treat the string like a file object
-    csv_file = StringIO(decoded)
+    for appt in data.appointments:
+        try:
+            message = client.messages.create(
+                body=delay_msg,
+                from_=TWILIO_PHONE_NUMBER,
+                to=appt.phone
+            )
+            success.append(appt.phone)
+        except Exception as e:
+            print(f"Failed to send to {appt.phone}: {e}")
+            failure.append(appt.phone)
 
-    # Create a CSV reader
-    reader = csv.DictReader(csv_file)
-
-    # Convert CSV rows to a list of dictionaries
-    data = [row for row in reader]
-
-    # Return the parsed data as JSON
-    return {"appointments": data}
-
-
-
-# To run this file locally:
-#     1. Save this file as main.py
-#     2. Install FastAPI and Uvicorn with:
-#        pip install fastapi uvicorn
-#     3. Start the server with:
-#        uvicorn main:app --reload
-
-# After starting, visit http://127.0.0.1:8000 in your browser to test the backend
+    return {"success": success, "failure": failure}
