@@ -6,10 +6,9 @@ from pydantic import BaseModel
 from typing import List
 from twilio.rest import Client
 import os
-from dotenv import load_dotenv(dotenv_path="./headsup-backend/.env")
+from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+load_dotenv(dotenv_path="../.env")
 
 # Twilio credentials from environment
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
