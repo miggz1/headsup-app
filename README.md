@@ -1,15 +1,18 @@
-# HeadsUp - Dental Office Delay Notification System
+# miguel-headsup
+Giving folks a heads up
 
-A lightweight delay messaging tool for dental offices to notify patients about appointment delays via SMS. Built with React frontend and FastAPI backend, using Twilio for SMS delivery.
+# HeadsUp - Office Delay Notification System
 
-## 🚀 Quick Start
+A lightweight delay messaging tool for offices to notify clients about appointment delays via SMS. Built with React frontend and FastAPI backend, using Twilio for SMS delivery.
 
-### Prerequisites
+## Quick Start
+
+### Prerequisites/Requirements
 - Python 3.8 or higher
 - Node.js 16 or higher
 - A Twilio account (free tier available)
 
-### Installation
+# Installation:
 
 1. **Clone the repository**
    ```bash
@@ -58,18 +61,9 @@ A lightweight delay messaging tool for dental offices to notify patients about a
 ### Start the Backend
 ```bash
 cd headsup-backend
-uvicorn main:app --reload --port 8000
+uvicorn main:app --reload
 ```
 The backend will run on `http://127.0.0.1:8000`
-
-**Alternative startup methods:**
-```bash
-# If you prefer python directly
-python -m uvicorn main:app --reload --port 8000
-
-# For production (no reload)
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
 
 ### Start the Frontend
 ```bash
@@ -81,7 +75,7 @@ The frontend will run on `http://localhost:3000`
 ## 📱 How to Use HeadsUp
 
 ### Step 1: Prepare Your CSV File
-Create a CSV file with your patient appointments. The file should have columns for:
+Create or import a CSV file with your clients appointments. The file should have columns for:
 - **Phone numbers** (in any format: +1-555-123-4567, 555-123-4567, etc.)
 - **Appointment times** (in any format: 9:00 AM, 14:30, etc.)
 
@@ -119,21 +113,6 @@ Phone,Time,Patient Name
 - **File size**: Under 10MB
 - **Encoding**: UTF-8 recommended
 
-### Example CSV Files
-
-**Simple format:**
-```csv
-Phone,Time
-555-123-4567,9:00 AM
-555-987-6543,2:30 PM
-```
-
-**Detailed format:**
-```csv
-Patient Phone,Appointment Time,Patient Name,Procedure
-+1-555-123-4567,9:00 AM,John Doe,Cleaning
-555-987-6543,2:30 PM,Jane Smith,Checkup
-```
 
 ## ⚠️ Common Issues & Solutions
 
@@ -144,10 +123,9 @@ Patient Phone,Appointment Time,Patient Name,Procedure
 - **Ensure backend is running** on port 8000
 
 ### "Backend connection failed"
-- **Start the backend**: `uvicorn main:app --reload --port 8000`
+- **Start the backend**: `uvicorn main:app --reload`
 - **Check port 8000** isn't in use by another application
 - **Verify CORS settings** if using different ports
-- **Try alternative startup**: `python -m uvicorn main:app --reload --port 8000`
 
 ### CSV Upload Issues
 - **Check file format** - must be .csv
@@ -208,4 +186,4 @@ If you encounter issues not covered in this guide:
 
 ---
 
-**HeadsUp** - Making dental office delays less frustrating, one SMS at a time.
+**HeadsUp** - Making office delays less frustrating, one SMS at a time.
